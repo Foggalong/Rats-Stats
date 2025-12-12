@@ -1,0 +1,164 @@
+---
+title: "Rats Stats"
+author: "Josh Fogg"
+format: html
+---
+
+## Introduction
+
+From 2020 to 2025, I had five wonderful pet rats: Allan, Wiggles, Manny, George, and <span title="Short for Courage; he was quite the coward." style="text-decoration:underline; text-decoration-style: dotted;">Curry</span>.
+
+::: {#fig-rats layout-ncol=5}
+
+![Allan](figures/photo-allan.jpg){#fig-allan}
+
+![Wiggles](figures/photo-wiggles.jpg){#fig-wiggles}
+
+![Manny](figures/photo-manny.jpg){#fig-manny}
+
+![George](figures/photo-george.jpg){#fig-george}
+
+![Curry](figures/photo-curry.jpg){#fig-curry}
+
+Photographs of the rats in question (CC BY-SA 4.0).
+:::
+
+I tracked how much each rat weighed on a regular basis as recommended by the RSPCA.[^1] While there isn't a universal 'healthy weight' across rats, the Isamu line for example typically fall in the 500-650g range when fully grown.[^2] As part of monitoring for sudden changes, it's helpful to visualise this date.
+
+[^1]: [_Rat Health and Welfare_](https://www.rspca.org.uk/adviceandwelfare/pets/rodents/rats/health), RSPCA Companion Animals Department. Accessed 2020-09-24.
+
+[^2]: [_Feeding and Nutrition_](http://www.isamurats.co.uk/feeding-faqs.html) by Jemma Fettes, Isamu Rats. Accessed 2025-12-12.
+
+```{r}
+#| echo: false
+#| message: false
+#| label: r-setup
+
+library(knitr)
+library(tidyverse)
+library(lubridate)
+```
+
+## Dataset
+
+The main data is stored as a [CSV file](https://en.wikipedia.org/wiki/Comma-separated_values) with the first column being the [ISO date](https://xkcd.com/1179/) and then a column for the weight in grams of each rat. The dates are not complete or evenly spaced and, for a variety of reasons, not every rat has a weight recorded for each date.
+
+```{r}
+#| echo: false
+#| label: tbl-weights
+#| tbl-cap: "rat weights in grams."
+#| tbl-colwidths: [60,40]
+
+raw_weights <- read.csv("weight-data.csv")
+kable(head(raw_weights))
+```
+
+A much smaller table contains the list of rats, their (estimated) dates of birth, and dates of death. Rats only live for 2-3 years!
+
+```{r}
+#| echo: false
+#| label: tbl-lives
+#| tbl-cap: "birth and death date for each rat."
+
+lives <- read.csv(strip.white=TRUE, row.names=1, text="
+  Rat,     Birthdate,  Deathdate
+  Allan,   2020-08-12, 2023-09-25
+  Wiggles, 2020-08-12, 2022-12-28
+  Manny,   2022-04-13, 2025-03-06
+  George,  2022-11-17, 2025-09-16
+  Curry,   2022-11-17, 2025-10-31
+")
+
+kable(lives)
+```
+
+## Problem
+
+From this, I want to visualise the weight time series in two ways: by date and by the age of the rat. Ideally I also want to do this from the same data, _i.e._ without creating a separate dataset of rat ages.
+
+::: {#fig-desired-timeseries-plots layout-ncol=2}
+
+![Using date as the $x$-axis.](figures/gsheets-by-date.svg){#fig-desired-date}
+
+![Using age as the $x$-axis.](figures/gsheets-by-age.svg){#fig-desired-age}
+
+The two desired line graphs of the weight time series, here created using Google Sheets.
+:::
+
+This is possible in standard spreadsheet software like Microsoft Excel, Google Sheets, or LibreOffice Calc using `VLOOKUP`{.groovy}. From the same dataset, it can create a table of rat weights by age using formulae like:
+
+```groovy
+=IFNA(VLOOKUP(RAT_BIRTHDAY + RAT_AGE, WEIGHT_DATA_RANGE, INDEX_OF_RAT))
+```
+
+It requires some maintenance to use though and, due to differing implementations of commands, is dependent on the specific spreadsheet it was created in. If the same spreadsheet is opened in different software, the plots may break.
+
+::: {#fig-desired-timeseries-plots layout-ncol=2}
+
+![Using date as the $x$-axis.](figures/ods-by-date.svg){#fig-broken-date}
+
+![Using age as the $x$-axis.](figures/ods-by-age.svg){#fig-broken-age}
+
+The same plots in @fig-desired-timeseries-plots from Google Sheets, but now exported to Microsoft Excel.
+:::
+
+## Tidy Solution
+
+It's possible to recreate this in a more robust way using R with [`tidyverse`](http://tidyverse.org/) and  [`lubridate`](https://lubridate.tidyverse.org/). First, I gather all the weighings as separate data points by date, ignore the ones that don't have a reading, and calculate the age of the rat in days for that weighing.
+
+```{r}
+#| label: process-data
+
+weights <- raw_weights %>%
+  gather(key = "Rat", value = "Weight", -Date) %>%
+  drop_na(Weight) %>%
+  mutate(
+    Date = as.Date(Date),
+    Age = interval(lives[Rat, "Birthdate"], Date) %/% days(1)
+  )
+```
+
+Then I plot the weights by date and by age using `ggplot`, copying the same colour scheme that was used in Google Sheets.
+
+```{r}
+#| echo: false
+#| label: fig-replicated-plots
+#| fig-cap: ["Using date as the $x$ axis", "Using age as the $x$ axis"]
+#| layout-ncol: 2
+
+rats_colours <- scale_color_manual(values = c("#f6b26b", "#93c47d", "#8e7cc3", "#e06666", "#6d9eeb"))
+
+ggplot(weights, aes(x = Date, y = Weight)) + 
+  geom_line(aes(color = Rat), size = .5) +
+  theme_minimal() +
+  theme(legend.position = "top") +
+  labs(x="Date", y="Weight (grams)") +
+  rats_colours
+
+ggplot(weights, aes(x = Age, y = Weight)) + 
+  geom_line(aes(color = Rat), size = .5) +
+  theme_minimal() +
+  theme(legend.position = "top") +
+  labs(x="Age (days)", y="Weight (grams)") +
+  rats_colours
+```
+
+Finally, I added two extra columns to @tbl-lives to replicate a dashboard I used to have, letting me quickly check how old my rats were when people asked me. 
+
+```{r}
+#| echo: false
+#| label: tbl-age-summary
+#| tbl-cap: "updated version of @tbl-lives, tracking age."
+
+kable(mutate(.data = lives,
+  Age = interval(Birthdate, Deathdate),  # age as 'lubridate' interval object
+  Years = round(Age / years(1), 1),      # convert age to years (round to 1dp)
+  Age = Age %/% days(1)                  # convert age to days (integer)
+))
+```
+
+## Conclusion
+
+Plotting multiple time series using spreadsheet software is possible, but doing it in a robust way that allows visualising both by date and by series age is difficult. R on the other hand could do this without breaking a sweat.
+
+Using R also opens the possibility of doing more complicated analysis than would be realistic to do in a spreadsheet. For example, are there correlations between the rats' relative weights by date? Do they share peaks and troughs? Or for the by-age data, could we use this to build a general model for the weight of a rat over time?
