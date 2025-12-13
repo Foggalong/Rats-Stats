@@ -1,6 +1,6 @@
 # Rats Stats 🐀
 
-I created this partially to recreate a spreadsheet I used to use for tracking the weights of my pet rats, but also as an answer to the question
+I created [this page](https://foggalong.github.io/Rats-Stats/) partially to recreate a spreadsheet I used to use for tracking the weights of my pet rats, but also as an answer to the question
 
 > _Why would I use R to plot graphs when I could just use Excel?_
 
