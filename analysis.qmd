@@ -1,7 +1,10 @@
 ---
 title: "Rats Stats"
 author: "Josh Fogg"
-format: html
+format:
+  html:
+    include-in-header:
+      - text: "<style>figcaption { text-align: center; }</style>"
 ---
 
 ## Introduction
@@ -23,7 +26,7 @@ From 2020 to 2025, I had five wonderful pet rats: Allan, Wiggles, Manny, George,
 Photographs of the rats in question (CC BY-SA 4.0).
 :::
 
-I tracked how much each rat weighed on a regular basis as recommended by the RSPCA.[^1] While there isn't a universal 'healthy weight' across rats, the Isamu line for example typically fall in the 500-650g range when fully grown.[^2] As part of monitoring for sudden changes, it's helpful to visualise this date.
+I tracked how much each rat weighed on a regular basis as recommended by the RSPCA.[^1] While there isn't a universal 'healthy weight' across rats, the Isamu line for example typically fall in the 500-650g range when fully grown.[^2] As part of monitoring for sudden changes, it's helpful to visualise this data.
 
 [^1]: [_Rat Health and Welfare_](https://www.rspca.org.uk/adviceandwelfare/pets/rodents/rats/health), RSPCA Companion Animals Department. Accessed 2020-09-24.
 
@@ -53,7 +56,7 @@ raw_weights <- read.csv("weight-data.csv")
 kable(head(raw_weights))
 ```
 
-A much smaller table contains the list of rats, their (estimated) dates of birth, and dates of death. Rats only live for 2-3 years!
+This is loaded into R as `raw_weights`. A much smaller table, `lives`, contains the list of rats, their (estimated) dates of birth, and dates of death. Rats only live for 2-3 years!
 
 ```{r}
 #| echo: false
@@ -120,33 +123,42 @@ weights <- raw_weights %>%
 
 Then I plot the weights by date and by age using `ggplot`, copying the same colour scheme that was used in Google Sheets.
 
+::: {#fig-replicated-plots layout-ncol=2}
+
 ```{r}
 #| echo: false
-#| label: fig-replicated-plots
-#| fig-cap: ["Using date as the $x$ axis", "Using age as the $x$ axis"]
-#| layout-ncol: 2
+#| label: fig-replicated-by-date
+#| fig-cap: "Using date as the $x$ axis"
 
-rats_colours <- scale_color_manual(values = c("#f6b26b", "#93c47d", "#8e7cc3", "#e06666", "#6d9eeb"))
+rats_colours <- scale_color_manual(values = c("#f6b26b", "#93c47d", "#e06666", "#8e7cc3", "#6d9eeb"))
 
 ggplot(weights, aes(x = Date, y = Weight)) + 
-  geom_line(aes(color = Rat), size = .5) +
+  geom_line(aes(color = Rat), size = .8) +
   theme_minimal() +
   theme(legend.position = "top") +
   labs(x="Date", y="Weight (grams)") +
   rats_colours
+```
+
+```{r}
+#| echo: false
+#| label: fig-replicated-by-age
+#| fig-cap: "Using age as the $x$ axis"
 
 ggplot(weights, aes(x = Age, y = Weight)) + 
-  geom_line(aes(color = Rat), size = .5) +
+  geom_line(aes(color = Rat), size = .8) +
   theme_minimal() +
   theme(legend.position = "top") +
   labs(x="Age (days)", y="Weight (grams)") +
   rats_colours
 ```
 
+The final line graphs of the weight time series, recreated using R with Tidyverse.
+:::
+
 Finally, I added two extra columns to @tbl-lives to replicate a dashboard I used to have, letting me quickly check how old my rats were when people asked me. 
 
 ```{r}
-#| echo: false
 #| label: tbl-age-summary
 #| tbl-cap: "updated version of @tbl-lives, tracking age."
 
@@ -159,6 +171,6 @@ kable(mutate(.data = lives,
 
 ## Conclusion
 
-Plotting multiple time series using spreadsheet software is possible, but doing it in a robust way that allows visualising both by date and by series age is difficult. R on the other hand could do this without breaking a sweat.
+Plotting multiple time series using spreadsheet software is possible, but doing it in a robust way that allows visualising both by date and by series age is difficult. R on the other hand could do this without breaking a sweat - just check out [this notebook's source code](https://github.com/Foggalong/Rats-Stats/blob/main/analysis.qmd)!
 
 Using R also opens the possibility of doing more complicated analysis than would be realistic to do in a spreadsheet. For example, are there correlations between the rats' relative weights by date? Do they share peaks and troughs? Or for the by-age data, could we use this to build a general model for the weight of a rat over time?
